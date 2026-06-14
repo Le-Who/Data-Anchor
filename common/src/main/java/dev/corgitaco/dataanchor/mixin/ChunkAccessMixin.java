@@ -20,6 +20,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.levelgen.blending.BlendingData;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -28,26 +29,36 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Collection;
 import java.util.Optional;
+import java.util.List;
+import java.util.ArrayList;
 
 @Mixin(ChunkAccess.class)
 public class ChunkAccessMixin implements TrackedDataContainer<ChunkAccess, ChunkTrackedData> {
 
     @Unique
-    TrackedDataContainer<ChunkAccess, ChunkTrackedData> dataAnchor$trackedDataContainer;
+    private TrackedDataContainer<ChunkAccess, ChunkTrackedData> dataAnchor$trackedDataContainer;
+
+    @Unique
+    private final List<BlockEntity> dataAnchor$tickableBlockEntities = new ArrayList<>();
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void dataAnchor$onInit(ChunkPos chunkPos, UpgradeData upgradeData, LevelHeightAccessor levelHeightAccessor, Registry biomeRegistry, long inhabitedTime, LevelChunkSection[] sections, BlendingData blendingData, CallbackInfo ci) {
-        if (levelHeightAccessor instanceof ServerLevelAccessor) {
-           this.dataAnchor$trackedDataContainer = TrackedDataContainer.makeBasicContainer(TrackedDataRegistries.CHUNK, (ChunkAccess) (Object) this, false);
-        } else {
-            this.dataAnchor$trackedDataContainer = TrackedDataContainer.makeBasicContainer(TrackedDataRegistries.CHUNK, (ChunkAccess) (Object) this, true);
-        }
-        this.dataAnchor$createTrackedData();
+        this.dataAnchor$trackedDataContainer = TrackedDataContainer.create((ChunkAccess) (Object) this, TrackedDataRegistries.CHUNK);
+    }
+
+    @Unique
+    public List<BlockEntity> dataAnchor$getTickableBlockEntities() {
+        return this.dataAnchor$tickableBlockEntities;
     }
 
     @Override
-    public <E extends ChunkTrackedData> Optional<E> dataAnchor$getTrackedData(TrackedDataKey<E> key) {
+    public <V> Optional<V> dataAnchor$getTrackedData(TrackedDataKey<V> key) {
         return dataAnchor$trackedDataContainer.dataAnchor$getTrackedData(key);
+    }
+
+    @Override
+    public <V> void dataAnchor$setTrackedData(TrackedDataKey<V> key, V value) {
+        dataAnchor$trackedDataContainer.dataAnchor$setTrackedData(key, value);
     }
 
     @Override
@@ -56,9 +67,7 @@ public class ChunkAccessMixin implements TrackedDataContainer<ChunkAccess, Chunk
     }
 
     @Override
-    public Collection<TrackedDataKey<ChunkTrackedData>> dataAnchor$getTrackedDataKeys() {
+    public Collection<TrackedDataKey<?>> dataAnchor$getTrackedDataKeys() {
         return dataAnchor$trackedDataContainer.dataAnchor$getTrackedDataKeys();
     }
-
-
 }
